@@ -14,7 +14,7 @@
             padding: 16px;
             background-color: #ffffff;
         }
-        h1, h2, h3, h4, h5, h6 {
+        h1, h2, h3 {
             margin-top: 24px;
             margin-bottom: 16px;
             font-weight: 600;
