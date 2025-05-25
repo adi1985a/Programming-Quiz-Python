@@ -1,116 +1,92 @@
-# 🎓📝 EduTest Pro: Interactive Knowledge Testing System 🧠
-_A Python desktop application using Tkinter for interactive knowledge testing with single-choice, multiple-choice, and open-ended questions, storing data in an SQLite database and visualizing progress with charts._
+# 🧠✅ PyQuiz Master: Tkinter Knowledge Testing System 📈
+_A Python application for conducting interactive quizzes in single-choice, multiple-choice, and open-ended formats, featuring a Tkinter GUI, SQLite database storage, and Matplotlib progress visualization._
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) <!-- Assuming MIT if not specified -->
 [![Python](https://img.shields.io/badge/Python-3.6%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
 [![Tkinter](https://img.shields.io/badge/GUI-Tkinter-orange.svg)]() <!-- Generic Tkinter badge -->
 [![SQLite](https://img.shields.io/badge/Database-SQLite-003B57.svg?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
-[![Matplotlib](https://img.shields.io/badge/Visualization-Matplotlib-informational.svg?logo=matplotlib)](https://matplotlib.org/)
+[![Matplotlib](https://img.shields.io/badge/Charts-Matplotlib-89A7D2.svg?logo=matplotlib)](https://matplotlib.org/)
 
 ## 📋 Table of Contents
 1.  [Overview](#-overview)
 2.  [Key Features](#-key-features)
 3.  [Screenshots (Conceptual)](#-screenshots-conceptual)
 4.  [System Requirements & Dependencies](#-system-requirements--dependencies)
-5.  [Database Schema](#-database-schema)
-6.  [Assumed Core Modules](#-assumed-core-modules)
-7.  [Installation and Setup](#️-installation-and-setup)
-8.  [Application Usage](#️-application-usage)
-9.  [File Structure (Expected)](#-file-structure-expected)
-10. [Technical Notes](#-technical-notes)
-11. [Contributing](#-contributing)
-12. [License](#-license)
-13. [Contact](#-contact)
+5.  [Database Schema & Content](#-database-schema--content)
+6.  [Installation and Setup](#️-installation-and-setup)
+7.  [Application Usage](#️-application-usage)
+8.  [File Structure (Expected)](#-file-structure-expected)
+9.  [Technical Notes](#-technical-notes)
+10. [Contributing](#-contributing)
+11. [License](#-license)
+12. [Contact](#-contact)
 
 ## 📄 Overview
 
-**EduTest Pro: Interactive Knowledge Testing System** is a Python application designed for conducting interactive knowledge quizzes. Developed by Adrian Lesniak, it supports three question formats: single-choice, multiple-choice, and open-ended. The application uses an **SQLite database** to store the test questions and the results of user attempts. It automatically evaluates user answers, tracks scores, and provides a visual representation of the user's learning progress over time using **Matplotlib charts**. The user interface (GUI) is built using the standard **Tkinter** library included with Python.
+**PyQuiz Master**, developed by Adrian Lesniak, is an interactive knowledge testing system built with Python. It provides a versatile platform for conducting quizzes in three different formats: **single-choice**, **multiple-choice**, and **open-ended questions**. The application leverages an **SQLite** database to store a repository of questions and to track user test results over time. It features automatic answer evaluation, scorekeeping, and visualizes learning progress through charts generated with **Matplotlib**. The entire user experience is managed through an intuitive Graphical User Interface (GUI) created with Python's standard **Tkinter** library.
 
 ## ✨ Key Features
 
-*   🤔 **Diverse Test Formats**: Supports conducting quizzes with:
-    *   Single-choice questions (select one correct answer).
-    *   Multiple-choice questions (select multiple correct answers).
-    *   Open-ended questions (user provides free-text answer).
+*   📝 **Multiple Test Formats**:
+    *   **Single-Choice Questions**: Users select one correct answer from a list of options.
+    *   **Multiple-Choice Questions**: Users can select one or more correct answers from a list.
+    *   **Open-Ended Questions**: Users type their answers into a text field.
 *   💾 **SQLite Database Integration**:
-    *   Stores the test questions (text, type, options, correct answers) in a `questions` table.
-    *   Records user test results (e.g., test type, score/points achieved, date/timestamp) in a `results` table.
-*   ✅ **Automated Answer Evaluation**: Automatically checks the user's submitted answers against the correct ones stored in the database and awards points accordingly.
-*   📈 **Progress Visualization**:
-    *   Visualizes user performance over time (e.g., scores on previous tests).
-    *   Uses the `matplotlib` library to generate charts for progress tracking.
-*   🖥️ **Intuitive Tkinter GUI**:
-    *   Provides a graphical user interface built with Python's standard `tkinter` library for easy navigation and interaction during quizzes.
-*   🗃️ **Database Preloading**: Questions covering topics like networking, programming, and databases are preloaded into the SQLite database upon application startup.
+    *   **Questions Storage**: All quiz questions, options, and correct answers are stored in a persistent SQLite database.
+    *   **Results Tracking**: User scores, test types, and dates of completion are saved to the database, allowing for historical performance analysis.
+*   ✔️ **Automatic Answer Evaluation**:
+    *   The application automatically checks user-submitted answers against the correct answers stored in the database.
+    *   Awards points based on correctness for each question.
+*   📈 **Learning Progress Visualization**:
+    *   A "Show Progress" feature uses **Matplotlib** to generate and display charts (e.g., line charts, bar charts) that visualize user performance and scores over time.
+*   🖥️ **Tkinter Graphical User Interface (GUI)**:
+    *   An intuitive and easy-to-navigate GUI for taking tests and viewing results.
+    *   Features include a menu bar, question display areas, input widgets (radio buttons, checkboxes, text entries), and feedback messages.
+*   📚 **Preloaded Question Bank**: The database is pre-populated with questions covering topics like networking, programming (Python, C++), and databases upon first startup.
 
 ## 🖼️ Screenshots (Conceptual)
 
 **Coming soon!**
 
-_This section would ideally show screenshots of: the main menu GUI, examples of each question format (single-choice, multiple-choice, open-ended), and an example of the progress chart generated by Matplotlib._
+_This section would ideally show screenshots of the PyQuiz Master application, including: the main menu, an example of a single-choice question, a multiple-choice question, an open-ended question, and the Matplotlib chart displaying user progress._
 
 ## ⚙️ System Requirements & Dependencies
 
-*   **Python Version**: Python 3.6 or higher.
-*   **Operating System**: Any OS that supports Python 3.6+ and has Tkinter libraries available (Tkinter is usually included with standard Python installations).
-*   **Standard Python Libraries (Included with Python)**:
-    *   `tkinter` (for the GUI)
-    *   `sqlite3` (for SQLite database interaction)
-    *   `random` (likely for question selection/shuffling)
-    *   `datetime` (for timestamping results)
-*   **External Libraries (Requires `pip install`)**:
+### Software:
+*   **Python**: Version 3.6 or higher.
+*   **Libraries**:
+    *   `tkinter`: For the graphical user interface. (Usually included with standard Python installations).
+    *   `sqlite3`: For database interaction. (Included with standard Python installations).
     *   `matplotlib`: For generating progress charts.
+    *   `random`: For shuffling question options.
+    *   `datetime`: For timestamping test results.
 
-## 💾 Database Schema
+### Installation of Dependencies:
+*   `matplotlib` is the primary external library that needs to be installed using `pip`.
 
-The application uses an SQLite database to store questions and results. The database should contain the following tables:
+## 💾 Database Schema & Content
+
+The application uses an SQLite database (e.g., `quiz_database.db`) with two main tables:
 
 1.  **`questions` Table**:
-    ```sql
-    CREATE TABLE questions (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        question_text TEXT NOT NULL,
-        question_type TEXT NOT NULL, -- e.g., 'single', 'multiple', 'open'
-        correct_answer TEXT NOT NULL, -- Correct answer(s)
-        options TEXT,                -- JSON or delimited string for multiple choice options
-        points INTEGER NOT NULL
-        -- Add other columns like category if needed
-    );
-    ```
+    *   Stores the quiz questions and related data.
+    *   **Example Schema**: `id INTEGER PRIMARY KEY, question_text TEXT, question_type TEXT, correct_answer TEXT, options TEXT`.
+    *   `question_type` would be 'single', 'multiple', or 'open'.
+    *   `correct_answer` and `options` would likely be stored as JSON strings or delimited text.
 2.  **`results` Table**:
-    ```sql
-    CREATE TABLE results (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        test_type TEXT,     -- e.g., 'Networking Quiz', 'Programming Test'
-        score REAL,         -- User's score (e.g., points out of total, or percentage)
-        date_time TEXT      -- Timestamp (YYYY-MM-DD HH:MM:SS)
-        -- Add other columns like user_id if implementing user accounts
-    );
-    ```
-*The application will likely handle the creation of these tables and preloading questions if the database file doesn't exist.*
+    *   Stores the history of completed tests.
+    *   **Example Schema**: `id INTEGER PRIMARY KEY, test_type TEXT, points_scored INTEGER, total_points INTEGER, test_date TEXT`.
 
-## 🧩 Assumed Core Modules
-
-The project's structure suggests at least one separate module:
-
-*   **`database.py`**: This module is assumed to contain functions or a class responsible for:
-    *   Creating the SQLite database file (`.db`) if it doesn't exist.
-    *   Defining and creating the database tables (`questions`, `results`).
-    *   Inserting the initial set of questions into the `questions` table.
-    *   Functions for retrieving questions for a test.
-    *   Functions for saving test results into the `results` table.
-    *   Functions for retrieving historical results for charting.
-
-*The actual implementation of the logic in `database.py` and the data structures for questions and results are crucial.*
+The database is initialized with a set of questions on topics like networking, programming, and databases, managed by a script like `database.py` (assumed).
 
 ## 🛠️ Installation and Setup
 
-1.  **Clone or Download the Repository**:
+1.  **Clone the Repository**:
     ```bash
     git clone <repository-url>
     cd <repository-directory>
     ```
-    *(Replace `<repository-url>` and `<repository-directory>` if applicable).*
+    *(Replace `<repository-url>` and `<repository-directory>` with your specific details).*
 
 2.  **Set Up a Virtual Environment (Recommended)**:
     ```bash
@@ -118,16 +94,16 @@ The project's structure suggests at least one separate module:
     source venv/bin/activate  # On Windows: venv\Scripts\activate
     ```
 
-3.  **Ensure Required Libraries are Installed**:
-    Matplotlib is an external dependency. Tkinter and sqlite3 are included with Python.
+3.  **Install Required Libraries**:
+    Activate your virtual environment and run:
     ```bash
     pip install matplotlib
-    # If a requirements.txt file is provided in the future:
-    # pip install -r requirements.txt
     ```
+    *(Tkinter and sqlite3 are usually part of the Python standard library, so they don't need to be installed separately via pip).*
 
-4.  **Ensure `database.py` is Present**:
-    *   Place your `database.py` file (containing the database setup and question loading logic) in the root project directory alongside `main.py`.
+4.  **Prepare Database (if needed)**:
+    *   The application is designed to automatically create and populate the SQLite database on its first run via logic contained in `database.py` (assumed).
+    *   Ensure you have write permissions in the project directory for the database file to be created.
 
 5.  **Run the Application**:
     Open a terminal or command prompt in the project's root directory and execute:
@@ -138,60 +114,66 @@ The project's structure suggests at least one separate module:
 ## 💡 Application Usage
 
 1.  Launch the application by running `python main.py` after completing the setup.
-2.  **Main Menu Interface**:
-    *   A Tkinter GUI window will appear, likely displaying a main menu.
-    *   Look for a "Tests" menu or similar options to start a quiz.
-3.  **Starting a Test**:
-    *   Select the desired test type (e.g., "Single Choice," "Multiple Choice," "Open Questions") from the GUI menu (e.g., under a "Tests" menu option).
-4.  **Answering Questions**:
-    *   Questions will be presented in the GUI.
-    *   Use the provided input fields (for open-ended), radio buttons (for single-choice), or checkboxes (for multiple-choice) to submit your answer.
-    *   Click a "Next Question" or "Submit Answer" button to proceed.
-5.  **Feedback**:
-    *   After submitting an answer, the application may provide immediate feedback on whether it was correct and the points awarded.
-6.  **Viewing Progress**:
-    *   Look for a "Show Progress" or "View Results" option in the menu. Clicking this should display a chart (using Matplotlib) visualizing your past test results (e.g., score over time).
-
-*The program flow is typically interactive, guiding you through questions and options via the GUI.*
+2.  **Main Window & Menu**:
+    *   The main application window will appear with a menu bar at the top.
+    *   The "Tests" menu will contain options to start a quiz:
+        *   Single Choice Test
+        *   Multiple Choice Test
+        *   Open Questions Test
+    *   There will also be an option to "Show Progress".
+3.  **Taking a Test**:
+    *   Select a test type from the "Tests" menu to begin.
+    *   A question will be displayed.
+    *   **For Single-Choice**: Select one answer using radio buttons.
+    *   **For Multiple-Choice**: Select one or more answers using checkboxes.
+    *   **For Open-Ended**: Type your answer into the text entry field.
+    *   Click the "Next Question" (or similar) button to submit your answer.
+    *   The application will provide immediate feedback (e.g., "Correct!" or "Incorrect.") and update your score.
+    *   Continue until all questions in the test are answered.
+4.  **Viewing Progress**:
+    *   From the main menu, select the "Show Progress" option.
+    *   A new window will appear displaying a **Matplotlib chart** that visualizes your past test scores, showing your learning progress over time.
+5.  **Exiting**: Close the main window to exit the application.
 
 ## 🗂️ File Structure (Expected)
 
-*   `main.py`: The main Python script that orchestrates the application, sets up the main Tkinter window, handles menu events, and interacts with other modules/database.
-*   `database.py`: (**Assumed, User-provided/Project-included**) Python module containing all SQLite database creation, seeding (questions), and data interaction logic.
+*   `main.py`: The main Python script that initializes the Tkinter application, sets up the GUI, handles user interactions, and orchestrates the test-taking and progress-viewing logic.
+*   `database.py`: (Assumed) A separate Python module containing functions for all database-related operations:
+    *   Creating the initial database and tables.
+    *   Inserting the predefined set of questions.
+    *   Fetching questions for a test.
+    *   Saving test results.
+    *   Retrieving historical results for charting.
+*   `quiz_database.db`: (Generated on first run) The SQLite database file where all questions and results are stored.
 *   `README.md`: This documentation file.
-*   (Potentially other Python files for specific components like `question_widgets.py` for rendering different question types, or `chart_generator.py` for visualization logic if separated from `main.py`).
-*   (Potentially `[database_name].db` file, e.g., `quiz.db`, which is created by `database.py`).
 
 ## 📝 Technical Notes
 
-*   **GUI Framework**: The application uses `tkinter`, Python's standard GUI toolkit, which is generally included with Python installations. This ensures portability across OSes where Python is available.
-*   **Database**: `sqlite3` is the standard Python library for interacting with SQLite databases, which are file-based and require no separate server process. The database file is created and managed locally.
-*   **Database Schema**: The `questions` table needs to store enough information to reconstruct and evaluate each question type (e.g., `question_text`, `question_type`, `correct_answer`, `options`). The `options` field for multiple-choice questions likely needs a structured format (e.g., JSON string, or delimited text) that the application can parse.
-*   **Progress Visualization**: Matplotlib is used to generate charts from the `results` table, typically displaying scores over time or by test type.
-*   **Answer Evaluation**: The core logic for checking user answers will need to be implemented within the application (likely in `main.py` or a dedicated test-running module), handling the different formats correctly.
-*   **Data Persistence**: User results and questions are persistently stored in the SQLite database file (`.db`), meaning data is saved across application runs.
-*   **Code Organization**: Breaking database logic into `database.py` is a good practice for modularity. Further refactoring could involve separating UI components or test logic into additional modules.
+*   **GUI Framework**: The application's user interface is built entirely with **Tkinter**, Python's standard GUI toolkit, making it cross-platform without requiring extra GUI library installations.
+*   **Database Management**: The use of `sqlite3` makes the database self-contained and file-based, requiring no separate database server setup. Logic for database creation and seeding is likely handled within `database.py`.
+*   **Progress Charting**: The integration of **Matplotlib** allows for powerful and flexible data visualization, providing users with tangible feedback on their performance. The chart is typically embedded within a Tkinter window.
+*   **Error Handling**: A robust implementation would include error handling for database operations (e.g., file permissions, SQL errors) and potentially invalid data formats if the database were to be manually edited.
+*   **Modularity**: Separating database logic into a `database.py` module is a good practice for maintainability and separation of concerns.
 
 ## 🤝 Contributing
 
-Contributions to **EduTest Pro** are highly encouraged! If you have ideas for:
+Contributions to **PyQuiz Master** are highly encouraged! If you have ideas for:
 
-*   Adding more questions and categories to the database.
-*   Implementing new question types.
-*   Enhancing the GUI design or user experience.
-*   Improving the progress visualization or adding more metrics.
-*   Adding features like user accounts, scoring systems, or different test modes.
-*   Implementing question shuffl
-ing or randomization.
+*   Adding new question types or test formats.
+*   Expanding the question database with more topics.
+*   Enhancing the progress visualization with different chart types or more detailed analytics.
+*   Improving the Tkinter UI/UX with better layouts or custom widgets.
+*   Implementing user accounts to track progress for multiple users.
+*   Adding features like timed quizzes or hints.
 
 1.  Fork the repository.
-2.  Create a new branch for your feature (`git checkout -b feature/NewQuestionCategory`).
-3.  Make your changes to the Python scripts (and potentially the database schema).
-4.  Commit your changes (`git commit -m 'Feature: Add questions about Databases'`).
-5.  Push to the branch (`git push origin feature/NewQuestionCategory`).
+2.  Create a new branch for your feature (`git checkout -b feature/UserAccounts`).
+3.  Make your changes to the Python scripts.
+4.  Commit your changes (`git commit -m 'Feature: Implement multi-user support'`).
+5.  Push to the branch (`git push origin feature/UserAccounts`).
 6.  Open a Pull Request.
 
-Please ensure your code is well-commented and follows Python best practices (e.g., PEP 8), including type hints where appropriate.
+Please ensure your code is well-commented, follows Python best practices (e.g., PEP 8), and includes type hints where appropriate.
 
 ## 📃 License
 
@@ -200,8 +182,8 @@ This project is licensed under the **MIT License**.
 
 ## 📧 Contact
 
-Application concept by **Adrian Lesniak**.
+Project concept by **Adrian Lesniak**.
 For questions, feedback, or issues, please open an issue on the GitHub repository or contact the repository owner.
 
 ---
-📚 _Test your knowledge and track your learning journey!_
+🎓 _Test your knowledge and track your learning progress with this interactive quiz application!_
