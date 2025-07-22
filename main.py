@@ -1,3 +1,18 @@
+"""
+Programming Quiz Application
+Author: Adrian Lesniak
+
+Description:
+This is a cross-platform quiz application for IT knowledge testing. It allows users to solve single choice, multiple choice, and open questions. The program saves results, shows progress, and provides a user-friendly, colorful graphical interface. All options are available from the menu. After each action, you can return to the main menu by pressing a button.
+
+Menu options:
+- Single Choice: Start a quiz with single-answer questions.
+- Multiple Choice: Start a quiz with multiple-answer questions.
+- Open Questions: Start a quiz with open-ended questions.
+- Show Progress: Display your learning progress in a chart.
+
+All interface elements, questions, and messages are in English. The application features error logging, file saving/loading, and is designed for clarity and ease of use.
+"""
 import tkinter as tk
 from tkinter import messagebox
 import sqlite3
@@ -7,6 +22,22 @@ from datetime import datetime
 from database import create_database, insert_question  # Import database functions
 from tkinter import ttk
 from tkinter import Checkbutton, IntVar
+import logging
+from logger import log_error
+import json
+import os
+import tkinter as tk
+from gui import LoginScreen, RegisterScreen, MainMenuScreen, QuizScreen, ResultsScreen, AchievementsScreen, LearningModeScreen
+from user import User
+from quiz import Quiz
+
+# Configure logging
+logging.basicConfig(
+    filename='log.txt',
+    level=logging.ERROR,
+    format='%(asctime)s %(levelname)s: %(message)s',
+    datefmt='%Y-%m-%d %H:%M:%S'
+)
 
 # Global variables
 questions = []
@@ -21,10 +52,45 @@ checkbox_vars = []
 checkbox_frame = None
 
 # Establish database connection
-conn = create_database()
-if conn is None:
-    print("Failed to connect to the database.")
+try:
+    conn = create_database()
+    if conn is None:
+        raise Exception("Failed to connect to the database.")
+except Exception as e:
+    log_error(str(e))
+    messagebox.showerror("Critical Error", "Database connection failed. See log.txt for details.")
     exit()
+
+def migrate_results_table():
+    conn = create_database()
+    c = conn.cursor()
+    # Sprawdź czy kolumna user_id istnieje
+    c.execute("PRAGMA table_info(results)")
+    columns = [row[1] for row in c.fetchall()]
+    if 'user_id' not in columns:
+        # Stwórz nową tabelę
+        c.execute('''CREATE TABLE IF NOT EXISTS results_new (
+            id INTEGER PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            type TEXT NOT NULL,
+            points INTEGER NOT NULL,
+            date TEXT NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )''')
+        # Przenieś stare dane (bez user_id, przypisz user_id=1 lub NULL)
+        try:
+            c.execute("SELECT id, type, points, date FROM results")
+            for row in c.fetchall():
+                c.execute("INSERT INTO results_new (id, user_id, type, points, date) VALUES (?, ?, ?, ?, ?)", (row[0], 1, row[1], row[2], row[3]))
+        except Exception:
+            pass
+        c.execute("DROP TABLE results")
+        c.execute("ALTER TABLE results_new RENAME TO results")
+        conn.commit()
+    conn.close()
+
+# Wywołaj migrację na starcie
+migrate_results_table()
 
 # Function to generate single-choice test
 def generate_single_choice(question, correct, incorrect):
@@ -60,15 +126,17 @@ def start_test(type):
     current_question = 0
     points = 0
     current_test_type = type
-    
-    c = conn.cursor()
-    c.execute("SELECT * FROM questions WHERE type=?", (type,))
-    questions = c.fetchall()
-    
+    try:
+        c = conn.cursor()
+        c.execute("SELECT * FROM questions WHERE type=?", (type,))
+        questions = c.fetchall()
+    except Exception as e:
+        log_error(f"Database error in start_test: {e}")
+        messagebox.showerror("Database Error", "Could not load questions. See log.txt for details.")
+        return
     if not questions:
         messagebox.showinfo("Error", "No questions available for this test type!")
         return
-        
     random.shuffle(questions)
     next_button.config(state=tk.NORMAL)
     show_question()
@@ -111,6 +179,9 @@ def show_question():
         answer_entry.config(state=tk.DISABLED)
         next_button.config(state=tk.DISABLED)
         save_result(current_test_type, points)
+        show_return_to_menu()
+
+# Add missing next_question function
 
 def next_question():
     global current_question, points
@@ -141,27 +212,77 @@ def next_question():
             else:
                 messagebox.showwarning("Warning", "Please enter an answer before continuing.")
 
+# Add return to menu button
+def show_return_to_menu():
+    def return_to_menu():
+        question_label.config(text="Select a test type to begin")
+        answer_entry.config(state=tk.NORMAL)
+        answer_entry.delete(0, tk.END)
+        next_button.config(state=tk.DISABLED)
+        if hasattr(show_return_to_menu, 'btn') and show_return_to_menu.btn:
+            show_return_to_menu.btn.destroy()
+    show_return_to_menu.btn = tk.Button(main_frame, text="Return to Menu", bg="#b3e6cc", fg="#003300", font=("Arial", 11, "bold"), command=return_to_menu)
+    show_return_to_menu.btn.pack(pady=10)
+
 # Function to save the result
 def save_result(type, points):
     date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    c = conn.cursor()
-    c.execute("INSERT INTO results (type, points, date) VALUES (?, ?, ?)", (type, points, date))
-    conn.commit()
+    try:
+        c = conn.cursor()
+        c.execute("INSERT INTO results (type, points, date) VALUES (?, ?, ?)", (type, points, date))
+        conn.commit()
+    except Exception as e:
+        log_error(f"Database error in save_result: {e}")
 
 # Function to show progress
 def show_progress():
-    c = conn.cursor()
-    c.execute("SELECT date, points FROM results")
-    data = c.fetchall()
-    dates = [row[0] for row in data]
-    points = [row[1] for row in data]
-    plt.plot(dates, points, marker='o')
-    plt.title("Learning Progress")
-    plt.xlabel("Date")
-    plt.ylabel("Points")
-    plt.xticks(rotation=45)
-    plt.tight_layout()
-    plt.show()
+    try:
+        c = conn.cursor()
+        c.execute("SELECT date, points FROM results")
+        data = c.fetchall()
+        dates = [row[0] for row in data]
+        points = [row[1] for row in data]
+        plt.plot(dates, points, marker='o')
+        plt.title("Learning Progress")
+        plt.xlabel("Date")
+        plt.ylabel("Points")
+        plt.xticks(rotation=45)
+        plt.tight_layout()
+        plt.show()
+    except Exception as e:
+        log_error(f"Database or plot error in show_progress: {e}")
+        messagebox.showerror("Error", "Could not display progress. See log.txt for details.")
+    show_return_to_menu()
+
+# Save results to JSON file
+def save_results_to_file():
+    try:
+        c = conn.cursor()
+        c.execute("SELECT * FROM results")
+        results = c.fetchall()
+        with open("results.json", "w", encoding="utf-8") as f:
+            json.dump(results, f, indent=2)
+        messagebox.showinfo("Export", "Results exported to results.json")
+    except Exception as e:
+        log_error(f"Error exporting results: {e}")
+        messagebox.showerror("Export Error", "Could not export results. See log.txt for details.")
+
+# Load results from JSON file
+def load_results_from_file():
+    try:
+        if not os.path.exists("results.json"):
+            messagebox.showwarning("Import", "results.json not found.")
+            return
+        with open("results.json", "r", encoding="utf-8") as f:
+            results = json.load(f)
+        c = conn.cursor()
+        for row in results:
+            c.execute("INSERT INTO results (id, type, points, date) VALUES (?, ?, ?, ?)", row)
+        conn.commit()
+        messagebox.showinfo("Import", "Results imported from results.json")
+    except Exception as e:
+        log_error(f"Error importing results: {e}")
+        messagebox.showerror("Import Error", "Could not import results. See log.txt for details.")
 
 # Before inserting questions, clear existing ones
 if conn is not None:
@@ -169,144 +290,144 @@ if conn is not None:
     c.execute("DELETE FROM questions")  # Clear existing questions
     
     # Add single choice questions (20+)
-    insert_question(conn, "Który protokół routingu używa algorytmu Dijkstry?", "single", "OSPF", 
+    insert_question(conn, "Which routing protocol uses the Dijkstra algorithm?", "single", "OSPF", 
                    "RIP,BGP,EIGRP")
     
-    insert_question(conn, "Jaki typ pamięci jest szybszy?", "single", "SRAM", 
+    insert_question(conn, "Which type of memory is faster?", "single", "SRAM", 
                    "DRAM,ROM,EPROM")
     
-    insert_question(conn, "Która warstwa modelu OSI odpowiada za routing?", "single", "Warstwa sieciowa", 
-                   "Warstwa transportowa,Warstwa łącza danych,Warstwa fizyczna")
+    insert_question(conn, "Which layer of the OSI model is responsible for routing?", "single", "Network Layer", 
+                   "Transport Layer,Data Link Layer,Physical Layer")
     
-    insert_question(conn, "Który model bazy danych używa JSON do przechowywania danych?", "single", "Dokumentowy", 
-                   "Relacyjny,Grafowy,Hierarchiczny")
+    insert_question(conn, "Which database model uses JSON to store data?", "single", "Document", 
+                   "Relational,Graph,Hierarchical")
                    
-    insert_question(conn, "Który język programowania jest kompilowany?", "single", "C++", 
+    insert_question(conn, "Which programming language is compiled?", "single", "C++", 
                    "Python,JavaScript,PHP")
                    
-    insert_question(conn, "Który algorytm sortowania ma złożoność O(n log n)?", "single", "QuickSort", 
+    insert_question(conn, "Which sorting algorithm has a time complexity of O(n log n)?", "single", "QuickSort", 
                    "BubbleSort,SelectionSort,InsertionSort")
                    
-    insert_question(conn, "Który typ sieci ma największy zasięg?", "single", "WAN", 
+    insert_question(conn, "Which type of network has the largest range?", "single", "WAN", 
                    "LAN,MAN,PAN")
                    
-    insert_question(conn, "Który protokół działa w warstwie aplikacji?", "single", "HTTP", 
+    insert_question(conn, "Which protocol operates at the application layer?", "single", "HTTP", 
                    "TCP,IP,UDP")
                    
-    insert_question(conn, "Która metoda szyfrowania jest symetryczna?", "single", "AES", 
+    insert_question(conn, "Which encryption method is symmetric?", "single", "AES", 
                    "RSA,DSA,ECC")
                    
-    insert_question(conn, "Który system plików jest natywny dla Linuxa?", "single", "ext4", 
+    insert_question(conn, "Which file system is native to Linux?", "single", "ext4", 
                    "NTFS,FAT32,HFS+")
                    
-    insert_question(conn, "Który port jest domyślny dla HTTPS?", "single", "443", 
+    insert_question(conn, "Which port is default for HTTPS?", "single", "443", 
                    "80,21,22")
                    
-    insert_question(conn, "Która technologia wirtualizacji jest typu bare-metal?", "single", "VMware ESXi", 
+    insert_question(conn, "Which virtualization technology is bare-metal?", "single", "VMware ESXi", 
                    "VirtualBox,QEMU,Wine")
                    
-    insert_question(conn, "Który wzorzec projektowy jest kreacyjny?", "single", "Singleton", 
+    insert_question(conn, "Which design pattern is creational?", "single", "Singleton", 
                    "Observer,Iterator,Decorator")
                    
-    insert_question(conn, "Która struktura danych działa na zasadzie LIFO?", "single", "Stos", 
-                   "Kolejka,Lista,Drzewo")
+    insert_question(conn, "Which data structure operates on a LIFO principle?", "single", "Stack", 
+                   "Queue,List,Tree")
                    
-    insert_question(conn, "Który protokół jest bezstanowy?", "single", "HTTP", 
+    insert_question(conn, "Which protocol is stateless?", "single", "HTTP", 
                    "FTP,SSH,Telnet")
                    
-    insert_question(conn, "Która metoda HTTP służy do usuwania zasobów?", "single", "DELETE", 
+    insert_question(conn, "Which HTTP method is used to delete resources?", "single", "DELETE", 
                    "GET,POST,PUT")
                    
-    insert_question(conn, "Który format służy do serializacji danych?", "single", "JSON", 
+    insert_question(conn, "Which format is used for data serialization?", "single", "JSON", 
                    "HTML,CSS,SQL")
                    
-    insert_question(conn, "Która technika jest używana do równoważenia obciążenia?", "single", "Round Robin", 
+    insert_question(conn, "Which technique is used for load balancing?", "single", "Round Robin", 
                    "FIFO,LIFO,Priority Queue")
                    
-    insert_question(conn, "Który protokół zapewnia poufność danych?", "single", "SSH", 
+    insert_question(conn, "Which protocol ensures data confidentiality?", "single", "SSH", 
                    "HTTP,FTP,SMTP")
                    
-    insert_question(conn, "Która topologia sieci jest najbardziej niezawodna?", "single", "Mesh", 
+    insert_question(conn, "Which network topology is the most reliable?", "single", "Mesh", 
                    "Star,Bus,Ring")
 
     # Add multiple choice questions (20+)
-    insert_question(conn, "Które protokoły routingu są protokołami stanu łącza?", 
+    insert_question(conn, "Which routing protocols are link-state protocols?", 
                    "multiple", "OSPF,IS-IS", 
                    "OSPF,RIP,BGP,IS-IS")
     
-    insert_question(conn, "Które z poniższych są typami pamięci RAM?", 
+    insert_question(conn, "Which of the following are RAM types?", 
                    "multiple", "DRAM,SRAM", 
                    "DRAM,SRAM,ROM,EPROM")
     
-    insert_question(conn, "Które warstwy modelu OSI są związane z końcem komunikacji?", 
-                   "multiple", "Warstwa aplikacji,Warstwa prezentacji,Warstwa sesji", 
-                   "Warstwa aplikacji,Warstwa prezentacji,Warstwa sesji,Warstwa transportowa")
+    insert_question(conn, "Which layers of the OSI model are related to communication?", 
+                   "multiple", "Application Layer,Presentation Layer,Session Layer", 
+                   "Application Layer,Presentation Layer,Session Layer,Transport Layer")
                    
-    insert_question(conn, "Które języki programowania są obiektowe?", 
+    insert_question(conn, "Which programming languages are object-oriented?", 
                    "multiple", "Java,C++,Python", 
                    "Java,C++,Python,Assembly")
                    
-    insert_question(conn, "Które systemy operacyjne są oparte na UNIX?", 
+    insert_question(conn, "Which operating systems are based on UNIX?", 
                    "multiple", "Linux,macOS,FreeBSD", 
                    "Linux,macOS,FreeBSD,Windows")
                    
-    insert_question(conn, "Które protokoły działają w warstwie transportowej?", 
+    insert_question(conn, "Which protocols operate at the transport layer?", 
                    "multiple", "TCP,UDP", 
                    "TCP,UDP,IP,HTTP")
                    
-    insert_question(conn, "Które metody HTTP są idempotentne?", 
+    insert_question(conn, "Which HTTP methods are idempotent?", 
                    "multiple", "GET,PUT,DELETE", 
                    "GET,PUT,DELETE,POST")
                    
-    insert_question(conn, "Które algorytmy są używane w kryptografii asymetrycznej?", 
+    insert_question(conn, "Which algorithms are used in asymmetric cryptography?", 
                    "multiple", "RSA,ECC,DSA", 
                    "RSA,ECC,DSA,AES")
                    
-    insert_question(conn, "Które wzorce projektowe są strukturalne?", 
+    insert_question(conn, "Which design patterns are structural?", 
                    "multiple", "Adapter,Bridge,Composite", 
                    "Adapter,Bridge,Composite,Singleton")
                    
-    insert_question(conn, "Które technologie są związane z konteneryzacją?", 
+    insert_question(conn, "Which technologies are related to containerization?", 
                    "multiple", "Docker,Kubernetes,Podman", 
                    "Docker,Kubernetes,Podman,VMware")
                    
-    insert_question(conn, "Które protokoły są używane w poczcie elektronicznej?", 
+    insert_question(conn, "Which protocols are used in email?", 
                    "multiple", "SMTP,POP3,IMAP", 
                    "SMTP,POP3,IMAP,FTP")
                    
-    insert_question(conn, "Które systemy plików obsługują uprawnienia UNIX?", 
+    insert_question(conn, "Which file systems support UNIX permissions?", 
                    "multiple", "ext4,XFS,ZFS", 
                    "ext4,XFS,ZFS,FAT32")
                    
-    insert_question(conn, "Które języki są używane w uczeniu maszynowym?", 
+    insert_question(conn, "Which languages are used in machine learning?", 
                    "multiple", "Python,R,Julia", 
                    "Python,R,Julia,HTML")
                    
-    insert_question(conn, "Które bazy danych są NoSQL?", 
+    insert_question(conn, "Which databases are NoSQL?", 
                    "multiple", "MongoDB,Cassandra,Redis", 
                    "MongoDB,Cassandra,Redis,PostgreSQL")
                    
-    insert_question(conn, "Które protokoły są związane z bezpieczeństwem?", 
+    insert_question(conn, "Which protocols are related to security?", 
                    "multiple", "SSL,TLS,IPSec", 
                    "SSL,TLS,IPSec,FTP")
                    
-    insert_question(conn, "Które technologie są używane w Big Data?", 
+    insert_question(conn, "Which technologies are used in Big Data?", 
                    "multiple", "Hadoop,Spark,HBase", 
                    "Hadoop,Spark,HBase,MySQL")
                    
-    insert_question(conn, "Które elementy są częścią architektury mikrousług?", 
+    insert_question(conn, "Which elements are part of microservices architecture?", 
                    "multiple", "API Gateway,Service Registry,Load Balancer", 
                    "API Gateway,Service Registry,Load Balancer,Monolith")
                    
-    insert_question(conn, "Które protokoły są używane w IoT?", 
+    insert_question(conn, "Which protocols are used in IoT?", 
                    "multiple", "MQTT,CoAP,AMQP", 
                    "MQTT,CoAP,AMQP,SQL")
                    
-    insert_question(conn, "Które narzędzia służą do CI/CD?", 
+    insert_question(conn, "Which tools are used for CI/CD?", 
                    "multiple", "Jenkins,GitLab CI,Travis CI", 
                    "Jenkins,GitLab CI,Travis CI,Notepad")
                    
-    insert_question(conn, "Które języki są kompilowane do kodu natywnego?", 
+    insert_question(conn, "Which languages are compiled to native code?", 
                    "multiple", "C,C++,Rust", 
                    "C,C++,Rust,Python")
 
@@ -316,107 +437,107 @@ if conn is not None:
         c.execute("DELETE FROM questions WHERE type='multiple'")  
         
         # Add new multiple choice questions based on the content
-        insert_question(conn, "Które z poniższych są cechami programowania obiektowego?", 
-                    "multiple", "Hermetyzacja,Dziedziczenie,Polimorfizm", 
-                    "Hermetyzacja,Dziedziczenie,Polimorfizm,Sekwencyjność")
+        insert_question(conn, "Which of the following are object-oriented programming features?", 
+                    "multiple", "Encapsulation,Inheritance,Polymorphism", 
+                    "Encapsulation,Inheritance,Polymorphism,Sequentiality")
         
-        insert_question(conn, "Które metody przekazywania parametrów występują w programowaniu?", 
-                    "multiple", "Przez wartość,Przez referencję,Przez wskaźnik", 
-                    "Przez wartość,Przez referencję,Przez wskaźnik,Przez nazwę")
+        insert_question(conn, "Which parameter passing methods are used in programming?", 
+                    "multiple", "By value,By reference,By pointer", 
+                    "By value,By reference,By pointer,By name")
         
-        insert_question(conn, "Które cechy charakteryzują model OSI?", 
-                    "multiple", "Fizyczna warstwa,Warstwa łącza danych,Warstwa sieciowa", 
-                    "Fizyczna warstwa,Warstwa łącza danych,Warstwa sieciowa,Warstwa abstrakcji")
+        insert_question(conn, "Which characteristics characterize the OSI model?", 
+                    "multiple", "Physical Layer,Data Link Layer,Network Layer", 
+                    "Physical Layer,Data Link Layer,Network Layer,Abstraction Layer")
         
-        insert_question(conn, "Które elementy są częścią zasad ACID w bazach danych?", 
+        insert_question(conn, "Which elements are part of ACID principles in databases?", 
                     "multiple", "Atomicity,Consistency,Isolation,Durability", 
                     "Atomicity,Consistency,Isolation,Durability,Flexibility")
         
-        insert_question(conn, "Które modele przestrzeni barw są powszechnie używane?", 
+        insert_question(conn, "Which color models are commonly used?", 
                     "multiple", "RGB,CMYK,HSV,LAB", 
                     "RGB,CMYK,HSV,LAB,YUV")
         
-        insert_question(conn, "Które cechy charakteryzują systemy wbudowane?", 
-                    "multiple", "Niskie zużycie energii,Optymalizacja,Czas rzeczywisty,Miniaturyzacja", 
-                    "Niskie zużycie energii,Optymalizacja,Czas rzeczywisty,Miniaturyzacja,Uniwersalność")
+        insert_question(conn, "Which characteristics characterize embedded systems?", 
+                    "multiple", "Low power consumption,Optimization,Real-time,Miniaturization", 
+                    "Low power consumption,Optimization,Real-time,Miniaturization,Univerality")
         
-        insert_question(conn, "Które metody są używane do zapewnienia bezpieczeństwa sieci?", 
-                    "multiple", "Firewalle,Szyfrowanie,VPN,IDS/IPS", 
-                    "Firewalle,Szyfrowanie,VPN,IDS/IPS,Kompresja")
+        insert_question(conn, "Which methods are used to ensure network security?", 
+                    "multiple", "Firewall,Encryption,VPN,IDS/IPS", 
+                    "Firewall,Encryption,VPN,IDS/IPS,Compression")
         
-        insert_question(conn, "Jakie są podstawowe pojęcia kryptograficzne?", 
-                    "multiple", "Szyfrowanie symetryczne,Szyfrowanie asymetryczne,Funkcje skrótu,Podpis cyfrowy", 
-                    "Szyfrowanie symetryczne,Szyfrowanie asymetryczne,Funkcje skrótu,Podpis cyfrowy,Kompresja")
+        insert_question(conn, "What are the fundamental concepts of cryptography?", 
+                    "multiple", "Symmetric encryption,Asymmetric encryption,Hash functions,Digital signature", 
+                    "Symmetric encryption,Asymmetric encryption,Hash functions,Digital signature,Compression")
         
-        insert_question(conn, "Które czynniki wpływają na wydajność bazy danych?", 
-                    "multiple", "Indeksowanie,Optymalizacja zapytań,Szybkie dyski SSD,Buforowanie", 
-                    "Indeksowanie,Optymalizacja zapytań,Szybkie dyski SSD,Buforowanie,Fragmentacja")
+        insert_question(conn, "Which factors affect database performance?", 
+                    "multiple", "Indexing,Query optimization,Fast SSD disks,Buffering", 
+                    "Indexing,Query optimization,Fast SSD disks,Buffering,Fragmentation")
         
-        insert_question(conn, "Jakie są główne cechy komunikacji interpersonalnej?", 
-                    "multiple", "Dwustronność,Sygnały werbalne,Sygnały niewerbalne,Kontekst", 
-                    "Dwustronność,Sygnały werbalne,Sygnały niewerbalne,Kontekst,Jednokierunkowość")
+        insert_question(conn, "What are the main characteristics of interpersonal communication?", 
+                    "multiple", "Two-way communication,Verbal signals,Non-verbal signals,Context", 
+                    "Two-way communication,Verbal signals,Non-verbal signals,Context,One-way communication")
 
     # Now add open questions
-    # Elektrotechnika i elektronika
-    insert_question(conn, "Podaj i omów twierdzenie Thevenina.", "open", "Umożliwia uproszczenie złożonego obwodu elektrycznego do prostego obwodu zastępczego, składającego się ze źródła napięcia i rezystora. Twierdzenie Thevenina mówi, że dowolny liniowy obwód elektryczny, widziany z dwóch zacisków, można zastąpić obwodem równoważnym, składającym się z idealnego źródła napięcia Thevenina (Vth) i rezystora Thevenina (Rth) połączonego szeregowo. Vth - to napięcie otwartego obwodu między zaciskami Rth - to rezystancja widziana między tymi zaciskami, gdy wszystkie niezależne źródła napięcia są zwarte, a niezależne źródła prądu są rozwarte.")
-    insert_question(conn, "Scharakteryzuj zasadę prostownika jednopołówkowego.", "open", "Prosty układ prostowniczy, który przewodzi prąd tylko w jednej połowie cyklu napięcia wejściowego. Prostownik jednopołówkowy wykorzystuje diodę, która przewodzi prąd tylko, gdy anoda ma potencjał wyższy niż katoda. W efekcie tylko jedna połowa sinusoidalnego napięcia wejściowego przechodzi przez diodę, tworząc wyprostowane, ale pulsujące napięcie. Jest to najprostszy, ale najmniej efektywny typ prostownika.")
-    insert_question(conn, "Wyjaśnij zasady działania pamięci półprzewodnikowych typu RAM", "open", "RAM to ulotna pamięć, w której dane są przechowywane tymczasowo i tracone po wyłączeniu zasilania. RAM (Random Access Memory) działa na zasadzie szybkiego dostępu do danych i wykorzystuje komórki pamięci oparte na tranzystorach i kondensatorach (DRAM) lub na układach flip-flop (SRAM). Jest stosowana do przechowywania aktywnych procesów i danych programów. DRAM wykorzystuje kondensator i wymaga odświeżania, SRAM nie wymaga odświeżania i jest szybsza, ale droższa – ale jak na egzamin ustny, obecna forma jest wystarczająca.")
+    # Electrical engineering and electronics
+    insert_question(conn, "Provide and discuss Thevenin's theorem.", "open", "Allows the simplification of a complex electrical circuit into a simple equivalent circuit, consisting of a voltage source and a resistor. Thevenin's theorem states that any linear electrical circuit, viewed from two terminals, can be replaced by an equivalent circuit, consisting of an ideal voltage source Thevenin (Vth) and a Thevenin resistor (Rth) connected in series. Vth - is the open-circuit voltage between the terminals, Rth - is the resistance viewed between these terminals, when all independent voltage sources are shorted, and independent current sources are open.")
+    insert_question(conn, "Characterize the principle of a half-wave rectifier.", "open", "A simple rectifier circuit that conducts current only in one half of the input voltage cycle. A half-wave rectifier uses a diode that conducts current only when the anode has a higher potential than the cathode. As a result, only one half of the sinusoidal input voltage passes through the diode, creating a rectified, but pulsating voltage. This is the simplest, but least effective type of rectifier.")
+    insert_question(conn, "Explain the principles of operation of semiconductor memory types RAM", "open", "RAM is volatile memory, in which data is temporarily stored and lost after power off. RAM (Random Access Memory) operates on the principle of fast data access and uses memory cells based on transistors and capacitors (DRAM) or flip-flops (SRAM). It is used to store active processes and program data. DRAM uses a capacitor and requires refreshing, SRAM does not require refreshing and is faster, but more expensive - but for an oral exam, the current form is sufficient.")
 
-    # Podstawy programowania
-    insert_question(conn, "Scharakteryzuj paradygmaty programowania strukturalnego i obiektowego.", "open", "Programowanie strukturalne opiera się na podziale kodu na funkcje i bloki sterujące, a obiektowe na organizowaniu kodu w klasy i obiekty. Programowanie strukturalne - wykorzystuje konstrukcje takie jak pętle, instrukcje warunkowe i funkcje do organizacji kodu w sposób czytelny i logiczny. Programowanie obiektowe - wprowadza koncepcję obiektów, które łączą dane i metody operujące na tych danych, umożliwiając hermetyzację, dziedziczenie i polimorfizm.")
-    insert_question(conn, "Omów metody przekazywania parametrów.", "open", "Parametry można przekazywać przez wartość (kopiowanie danych) lub przez referencję (odwołanie do oryginału). Przez wartość – tworzy kopię wartości parametru, więc zmiany nie wpływają na oryginalne dane. Przez referencję – przekazywana jest referencja do oryginalnej wartości, więc zmiany dokonane wewnątrz funkcji wpływają na zmienną wywołującą. Przez wskaźnik (np. w C++) – przekazywany jest adres pamięci, co daje większą kontrolę nad danymi, ale wymaga ostrożności.")
+    # Basic programming
+    insert_question(conn, "Characterize procedural and object-oriented programming paradigms.", "open", "Procedural programming relies on dividing code into functions and control blocks, while object-oriented programming organizes code into classes and objects. Procedural programming - uses constructs such as loops, conditional statements, and functions to organize code in a readable and logical way. Object-oriented programming - introduces the concept of objects, which combine data and methods operating on that data, enabling encapsulation, inheritance, and polymorphism.")
+    insert_question(conn, "Discuss parameter passing methods.", "open", "Parameters can be passed by value (copying data) or by reference (referring to the original). By value - creates a copy of the parameter value, so changes do not affect the original data. By reference - the original value is passed, so changes made inside the function affect the calling variable. By pointer (e.g., in C++) - the memory address is passed, which gives greater control over the data, but requires caution.")
 
-    # Algorytmy i struktury danych
-    insert_question(conn, "Wyjaśnij pojęcia: złożoność czasowa algorytmu (pesymistyczna i średnia).", "open", "Złożoność czasowa określa, ile operacji wykonuje algorytm w zależności od rozmiaru danych. Pesymistyczna ocenia najgorszy możliwy przypadek, a średnia – uśredniony czas działania. Pesymistyczna złożoność (najgorszy przypadek) – określa maksymalną liczbę operacji, jakie algorytm może wykonać. Oznaczana jako O(n) lub inne notacje asymptotyczne. Średnia złożoność – określa oczekiwaną liczbę operacji, bazując na średnich przypadkach wejściowych.")
-    insert_question(conn, "Podaj definicję algorytmu oraz metody zapisu.", "open", "Algorytm to skończony zbiór instrukcji prowadzący do rozwiązania określonego problemu. Algorytmy mogą być zapisywane na kilka sposobów: Lista kroków – opis słowny działań. Schemat blokowy – graficzna reprezentacja algorytmu za pomocą bloków i strzałek. Pseudokod – zapis przypominający kod programistyczny, ale niezależny od konkretnego języka. Język programowania – implementacja algorytmu w wybranym języku.")
+    # Algorithms and data structures
+    insert_question(conn, "Explain concepts: time complexity of an algorithm (worst-case and average).", "open", "Time complexity determines how many operations an algorithm performs depending on the size of the data. Worst-case analysis evaluates the worst possible scenario, while average analysis evaluates the average time. Worst-case complexity (worst case) - determines the maximum number of operations an algorithm can perform. Denoted as O(n) or other asymptotic notations. Average complexity - determines the expected number of operations, based on average input cases.")
+    insert_question(conn, "Provide a definition of an algorithm and its methods of recording.", "open", "An algorithm is a finite set of instructions leading to the solution of a specific problem. Algorithms can be recorded in several ways: Step-by-step description - a verbal description of actions. Flowchart - a graphical representation of the algorithm using blocks and arrows. Pseudocode - a recording that resembles programming code, but is independent of a specific language. Programming language - implementation of the algorithm in a selected language.")
 
-    # Bazy danych
-    insert_question(conn, "Podaj definicję i znaczenie kluczy w relacyjnych bazach danych.", "open", "Klucze w bazach danych służą do jednoznacznej identyfikacji rekordów i zapewnienia integralności danych. Klucz główny (Primary Key) – unikalny identyfikator w tabeli. Klucz obcy (Foreign Key) – odniesienie do klucza głównego w innej tabeli, zapewniające spójność relacji. Klucz kandydujący (Candidate Key) – potencjalny klucz główny, spełniający warunki unikalności. Klucz złożony – składający się z więcej niż jednej kolumny.")
-    insert_question(conn, "Podaj charakterystykę języka zapytań SQL.", "open", "SQL to język służący do zarządzania danymi w relacyjnych bazach danych. SQL (Structured Query Language) pozwala na: Pobieranie danych (SELECT) Modyfikację danych (INSERT, UPDATE, DELETE) Definiowanie struktury tabel (CREATE TABLE, ALTER TABLE) Zarządzanie uprawnieniami (GRANT, REVOKE) Obsługę transakcji (COMMIT, ROLLBACK)")
-    insert_question(conn, "Wyjaśnij na czym polega proces normalizacji relacyjnej bazy danych.", "open", "Normalizacja to proces organizacji danych w bazie w celu eliminacji redundancji i zapewnienia spójności. Normalizacja składa się z kilku poziomów (normalnych form), np.: 1NF – eliminacja powtarzających się grup danych. 2NF – eliminacja zależności funkcyjnych od części klucza głównego. 3NF – eliminacja zależności pośrednich między kolumnami. BCNF – rozszerzenie 3NF w celu dalszej redukcji zależności.")
-    insert_question(conn, "Wyjaśnij pojęcie transakcji.", "open", "Transakcja to zbiór operacji na bazie danych, które muszą być wykonane w całości albo wcale. Transakcja w bazach danych spełnia zasady ACID: Atomicity (Atomowość) – transakcja jest niepodzielna. Consistency (Spójność) – transakcja nie narusza zasad bazy danych. Isolation (Izolacja) – transakcje nie wpływają na siebie nawzajem. Durability (Trwałość) – po zatwierdzeniu transakcji dane są zapisane na stałe.")
+    # Databases
+    insert_question(conn, "Provide a definition and significance of keys in relational databases.", "open", "Keys in databases serve to uniquely identify records and ensure data integrity. Primary Key - a unique identifier in a table. Foreign Key - a reference to the primary key in another table, ensuring relationship consistency. Candidate Key - a potential primary key, satisfying uniqueness conditions. Composite Key - consisting of more than one column.")
+    insert_question(conn, "Provide a description of the SQL query language.", "open", "SQL is a language for managing data in relational databases. SQL (Structured Query Language) allows: Retrieving data (SELECT) Modifying data (INSERT, UPDATE, DELETE) Defining table structure (CREATE TABLE, ALTER TABLE) Managing permissions (GRANT, REVOKE) Handling transactions (COMMIT, ROLLBACK)")
+    insert_question(conn, "Explain the process of normalizing a relational database.", "open", "Normalization is the process of organizing data in a database to eliminate redundancy and ensure consistency. Normalization consists of several levels (normal forms), e.g.: 1NF - elimination of repeating data groups. 2NF - elimination of functional dependencies from the primary key. 3NF - elimination of intermediate dependencies between columns. BCNF - extension of 3NF to further reduce dependencies.")
+    insert_question(conn, "Explain the concept of a transaction.", "open", "A transaction is a set of operations on a database, which must be executed in their entirety or not at all. Transactions in databases satisfy the ACID principles: Atomicity (Atomization) - a transaction is indivisible. Consistency (Consistency) - a transaction does not violate database rules. Isolation (Isolation) - transactions do not affect each other. Durability (Durability) - after transaction confirmation, data are permanently saved.")
 
-    # Programowanie obiektowe
-    insert_question(conn, "Wyjaśnij pojęcia obiektu i klasy.", "open", "Klasa to szablon definiujący właściwości i zachowania obiektów, a obiekt to konkretny egzemplarz klasy. Klasa zawiera pola (dane) i metody (funkcje) określające jej zachowanie. Obiekty są instancjami klasy – np. klasa Samochód może mieć obiekty Ford i Toyota, które dziedziczą cechy klasy, ale mogą mieć różne wartości pól (np. kolor).")
-    insert_question(conn, "Omów mechanizm metod (funkcji) wirtualnych.", "open", "Metody wirtualne pozwalają na dynamiczne (polimorficzne) wywoływanie metod w klasach dziedziczących. W językach jak C++ i Java metoda oznaczona jako virtual (C++) lub override (C#) może być nadpisywana w klasie pochodnej, a wywołanie metody zależy od typu obiektu w trakcie działania programu, a nie kompilacji.")
+    # Object-oriented programming
+    insert_question(conn, "Explain concepts of object and class.", "open", "A class is a template defining properties and behaviors of objects, while an object is a specific instance of a class. A class contains fields (data) and methods (functions) defining its behavior. Objects are instances of a class - e.g., class Car can have objects Ford and Toyota, which inherit class properties, but can have different field values (e.g., color).")
+    insert_question(conn, "Discuss the mechanism of virtual methods (functions).", "open", "Virtual methods allow dynamic (polymorphic) invocation of methods in derived classes. In languages like C++ and Java, a method marked as virtual (C++) or override (C#) can be overridden in a derived class, and the method call depends on the object type during program execution, not compilation.")
 
-    # Sieci komputerowe
-    insert_question(conn, "Omów mechanizmy adresacji w sieciach.", "open", "Adresacja w sieciach obejmuje adresy IP, MAC i porty, które umożliwiają identyfikację urządzeń i komunikację. Adres MAC – unikalny identyfikator karty sieciowej na warstwie łącza danych. Adres IP – logiczny adres przypisany urządzeniu w sieci (IPv4, IPv6). Porty – identyfikują konkretne usługi (np. HTTP = port 80).")
-    insert_question(conn, "Podaj przykłady protokołów routingu.", "open", "Protokoły routingu określają trasę pakietów w sieci, np. RIP, OSPF, BGP. RIP (Routing Information Protocol) – prosty protokół, bazujący na liczbie przeskoków. OSPF (Open Shortest Path First) – zaawansowany protokół używający algorytmu Dijkstry. BGP (Border Gateway Protocol) – używany do routingu między systemami autonomicznymi w Internecie.")
-    insert_question(conn, "Omów model OSI.", "open", "Model OSI to siedmiowarstwowa struktura opisująca komunikację w sieciach. Warstwy modelu OSI: Fizyczna – przesył sygnałów elektrycznych/świetlnych. Łącza danych – adresacja MAC, kontrola dostępu do medium. Sieciowa – adresacja IP, routowanie pakietów. Transportowa – zarządzanie sesjami, protokoły TCP/UDP. Sesji – ustanawianie, utrzymanie i zamykanie sesji. Prezentacji – kodowanie, szyfrowanie danych. Aplikacji – interakcja z użytkownikiem (HTTP, FTP).")
+    # Computer networks
+    insert_question(conn, "Discuss addressing mechanisms in networks.", "open", "Addressing in networks involves IP, MAC, and ports that enable device identification and communication. MAC address - a unique identifier of the network interface card at the data link layer. IP address - a logical address assigned to a device in a network (IPv4, IPv6). Ports - identify specific services (e.g., HTTP = port 80).")
+    insert_question(conn, "Provide examples of routing protocols.", "open", "Routing protocols determine the route of packets in a network, e.g., RIP, OSPF, BGP. RIP (Routing Information Protocol) - a simple protocol based on the number of hops. OSPF (Open Shortest Path First) - an advanced protocol using the Dijkstra algorithm. BGP (Border Gateway Protocol) - used for routing between autonomous systems in the Internet.")
+    insert_question(conn, "Discuss the OSI model.", "open", "The OSI model is a seven-layer structure describing communication in networks. OSI layers: Physical - transmission of electrical/optical signals. Data Link - MAC addressing, access to medium. Network - IP addressing, packet routing. Transport - session management, TCP/UDP protocols. Session - establishing, maintaining, and closing sessions. Presentation - encoding, encryption of data. Application - user interaction (HTTP, FTP).")
 
-    # Architektura komputerów
-    insert_question(conn, "Omów konstrukcję modelu programowego procesora w podejściu CISC i RISC.", "open", "CISC (Complex Instruction Set Computing) ma rozbudowany zestaw instrukcji, a RISC (Reduced Instruction Set Computing) ogranicza liczbę instrukcji dla większej wydajności. CISC – złożone instrukcje, wiele trybów adresowania, np. procesory x86. RISC – proste instrukcje, jednolity czas wykonania, np. ARM, MIPS.")
+    # Computer architecture
+    insert_question(conn, "Discuss the construction of the CISC and RISC program processor model.", "open", "CISC (Complex Instruction Set Computing) has a rich set of instructions, while RISC (Reduced Instruction Set Computing) limits the number of instructions for greater performance. CISC - complex instructions, multiple addressing modes, e.g., x86 processors. RISC - simple instructions, uniform execution time, e.g., ARM, MIPS.")
 
-    # Inżynieria oprogramowania
-    insert_question(conn, "Wymień i krótko scharakteryzuj najważniejsze modele cyklu życia oprogramowania.", "open", "Modele cyklu życia oprogramowania określają sposób jego tworzenia i rozwijania, np. model kaskadowy, przyrostowy, spiralny i Agile. Model kaskadowy – liniowy, każda faza kończy się przed rozpoczęciem kolejnej. Model przyrostowy – system rozwijany stopniowo w kolejnych wersjach. Model spiralny – iteracyjne podejście z analizą ryzyka. Agile – elastyczne podejście z iteracjami i częstą interakcją z klientem.")
-    insert_question(conn, "Podaj i krótko scharakteryzuj rodzaje testów oprogramowania.", "open", "Testy oprogramowania dzielą się na jednostkowe, integracyjne, systemowe i akceptacyjne. Testy jednostkowe – sprawdzają pojedyncze moduły kodu. Testy integracyjne – testowanie współpracy różnych modułów. Testy systemowe – sprawdzają całość systemu pod kątem funkcjonalności. Testy akceptacyjne – wykonywane przez użytkowników końcowych w celu zatwierdzenia produktu.")
+    # Software engineering
+    insert_question(conn, "List and briefly characterize the most important software life cycle models.", "open", "Software life cycle models define the way they are created and developed, e.g., waterfall, incremental, spiral, and Agile. Waterfall model - linear, each phase ends before the next begins. Incremental model - system developed incrementally in successive versions. Spiral model - iterative approach with risk analysis. Agile - flexible approach with iterations and frequent interaction with the customer.")
+    insert_question(conn, "Provide and briefly characterize the types of software testing.", "open", "Software testing is divided into unit, integration, system, and acceptance tests. Unit tests - check individual code modules. Integration tests - testing the interaction of different modules. System tests - check the entire system for functionality. Acceptance tests - performed by end users to approve the product.")
 
-    # Sztuczna inteligencja
-    insert_question(conn, "Podaj przykład algorytmu przeszukiwania przestrzeni stanów w systemach sztucznej inteligencji.", "open", "Przeszukiwanie przestrzeni stanów może być realizowane np. przez algorytm A* czy algorytm minimax. Algorytm A* – optymalne przeszukiwanie z heurystyką, używane w wyznaczaniu tras. Minimax – wykorzystywany w grach strategicznych, wybiera najlepszy ruch dla gracza, zakładając, że przeciwnik gra optymalnie.")
+    # Artificial intelligence
+    insert_question(conn, "Provide an example of a state space search algorithm in artificial intelligence systems.", "open", "State space search can be implemented, e.g., by A* algorithm or minimax algorithm. A* algorithm - optimal search with heuristics, used in route determination. Minimax - used in strategic games, selects the best move for the player, assuming the opponent plays optimally.")
 
-    # Grafika komputerowa
-    insert_question(conn, "Przedstaw znane modele przestrzeni barw.", "open", "Modele przestrzeni barw to RGB, CMYK, HSV i LAB, stosowane w grafice i druku. RGB (Red, Green, Blue) – model addytywny, stosowany w ekranach. CMYK (Cyan, Magenta, Yellow, Black) – model subtraktywny, używany w druku. HSV (Hue, Saturation, Value) – model oparty na postrzeganiu barw przez człowieka. LAB – model, w którym kolor opisuje jasność oraz dwie osie kolorów, stosowany do precyzyjnej manipulacji barwami")
+    # Computer graphics
+    insert_question(conn, "Present known color models.", "open", "Color models are RGB, CMYK, HSV, and LAB, used in graphics and printing. RGB (Red, Green, Blue) - additive model, used in screens. CMYK (Cyan, Magenta, Yellow, Black) - subtractive model, used in printing. HSV (Hue, Saturation, Value) - model based on human perception. LAB - model in which color describes lightness and two color axes, used for precise color manipulation")
 
-    # Systemy wbudowane
-    insert_question(conn, "Scharakteryzuj systemy wbudowanego.", "open", "Systemy wbudowane to specjalizowane systemy komputerowe przeznaczone do wykonywania określonych zadań. Systemy wbudowane to komputery działające w tle urządzeń, np. w samochodach, sprzęcie AGD, medycznym. Mają zoptymalizowany sprzęt i oprogramowanie, często działają w czasie rzeczywistym.")
-    insert_question(conn, "Określ cechy współczesnych systemów wbudowanych", "open", "Nowoczesne systemy wbudowane cechują się energooszczędnością, małymi rozmiarami i wysoką niezawodnością. Najważniejsze cechy to: Niskie zużycie energii – stosowane w urządzeniach przenośnych. Optymalizacja pod kątem konkretnego zadania – brak uniwersalności. Czas rzeczywisty – niektóre systemy muszą reagować natychmiast. Miniaturyzacja – układy SoC (System on Chip) pozwalają zmniejszyć rozmiar i zużycie energii.")
+    # Embedded systems
+    insert_question(conn, "Characterize embedded systems.", "open", "Embedded systems are specialized computer systems designed to perform specific tasks. Embedded systems are computers operating in the background of devices, e.g., in cars, household appliances, medical equipment. They have optimized hardware and software, often operating in real-time.")
+    insert_question(conn, "Specify the characteristics of modern embedded systems", "open", "Modern embedded systems are characterized by energy efficiency, small size, and high reliability. The most important characteristics are: Low power consumption - used in portable devices. Optimization for a specific task - lack of universality. Real-time - some systems must react immediately. Miniaturization - SoC (System on Chip) layouts allow for smaller size and energy consumption.")
 
-    # Bezpieczeństwo sieci komputerowych
-    insert_question(conn, "Przedstaw podstawowe pojęcia kryptograficzne.", "open", "Podstawowe pojęcia to szyfrowanie, klucze, funkcje skrótu i podpis cyfrowy. Szyfrowanie symetryczne – ten sam klucz do szyfrowania i deszyfrowania (AES). Szyfrowanie asymetryczne – para kluczy publiczny-prywatny (RSA). Funkcje skrótu – tworzą unikalny identyfikator danych (SHA-256). Podpis cyfrowy – pozwala na uwierzytelnienie nadawcy i integralność danych.")
-    insert_question(conn, "Omów stosowane metody zapewniające bezpieczeństwo sieci komputerowej.", "open", "Do ochrony sieci stosuje się firewalle, szyfrowanie, VPN oraz systemy IDS/IPS. Firewalle – blokują nieautoryzowany ruch. Szyfrowanie – zabezpiecza dane przed przechwyceniem. VPN – tworzy bezpieczne, szyfrowane połączenie. IDS/IPS – systemy wykrywające i zapobiegające atakom.")
+    # Network security
+    insert_question(conn, "Present fundamental concepts of cryptography.", "open", "Fundamental concepts are encryption, keys, hash functions, and digital signature. Symmetric encryption - the same key for encryption and decryption (AES). Asymmetric encryption - a public-private key pair (RSA). Hash functions - create a unique identifier for data (SHA-256). Digital signature - allows for sender authentication and data integrity.")
+    insert_question(conn, "Discuss methods used to ensure network security.", "open", "Firewalls, encryption, VPN, and IDS/IPS systems are used for network protection. Firewalls - block unauthorized traffic. Encryption - protects data from interception. VPN - creates a secure, encrypted connection. IDS/IPS - detection and prevention of attacks.")
 
-    # Systemy baz danych
-    insert_question(conn, "Podaj czynniki wpływające na wydajność bazy danych.", "open", "Wydajność zależy od indeksowania, optymalizacji zapytań i sprzętu. Indeksowanie – przyspiesza wyszukiwanie danych. Optymalizacja zapytań – eliminuje zbędne operacje. Zasoby sprzętowe – szybkie dyski SSD poprawiają wydajność. Buforowanie i cache – zmniejsza liczbę operacji na dysku.")
-    insert_question(conn, "Omów wybrane modele baz danych.", "open", "Modele baz danych to relacyjne, dokumentowe, grafowe i klucz-wartość. Relacyjne (SQL) – opierają się na tabelach i kluczach (MySQL, PostgreSQL). Dokumentowe (NoSQL) – przechowują dane w formacie JSON/XML (MongoDB). Grafowe – reprezentują dane jako węzły i krawędzie (Neo4j). Klucz-wartość – szybkie mapowanie kluczy na wartości (Redis).")
-    insert_question(conn, "Omów metody wykonywania złożonych zapytań SQL pozwalające zwiększyć szybkości ich wykonania.", "open", "Optymalizacja zapytań obejmuje użycie indeksów, partycjonowanie i buforowanie. Indeksowanie – skraca czas wyszukiwania. Partycjonowanie – dzieli duże tabele na mniejsze fragmenty. Materializowane widoki – zapisują wyniki zapytań. EXPLAIN – analiza planu wykonania zapytań pozwala na optymalizację.")
+    # Database systems
+    insert_question(conn, "Specify factors affecting database performance.", "open", "Performance depends on indexing, query optimization, and hardware. Indexing - speeds up data retrieval. Query optimization - eliminates unnecessary operations. Hardware resources - fast SSD disks improve performance. Buffering and caching - reduces the number of disk operations.")
+    insert_question(conn, "Discuss selected database models.", "open", "Database models are relational, document, graph, and key-value. Relational (SQL) - based on tables and keys (MySQL, PostgreSQL). Document (NoSQL) - store data in JSON/XML format (MongoDB). Graph - represent data as nodes and edges (Neo4j). Key-value - fast mapping of keys to values (Redis).")
+    insert_question(conn, "Discuss methods for executing complex SQL queries that allow for faster execution.", "open", "Query optimization involves using indexes, partitioning, and caching. Indexing - shortens search time. Partitioning - divides large tables into smaller fragments. Materialized views - save query results. EXPLAIN - query execution plan analysis allows for optimization.")
 
-    # Komunikacja interpersonalna
-    insert_question(conn, "Scharakteryzuj pojęcie komunikacja interpersonalna i jej cechy.", "open", "Komunikacja interpersonalna to wymiana informacji między ludźmi, obejmująca mowę, gesty i emocje. Główne cechy: Dwustronność – nadawca i odbiorca wymieniają informacje. Sygnały werbalne i niewerbalne – znaczenie ma nie tylko treść, ale i sposób przekazu. Kontekst – kultura, sytuacja, relacje wpływają na interpretację.")
+    # Interpersonal communication
+    insert_question(conn, "Characterize the concept of interpersonal communication and its characteristics.", "open", "Interpersonal communication is the exchange of information between people, involving speech, gestures, and emotions. Main characteristics: Two-way communication - both sender and receiver exchange information. Verbal and non-verbal signals - meaning is not only content, but also method of transmission. Context - culture, situation, relationships influence interpretation.")
 
-    # Podstawy kreatywności
-    insert_question(conn, "Scharakteryzuj pojęcia: inteligencja, rozum, wiedza, mądrość", "open", "Inteligencja – zdolność do rozwiązywania problemów. Rozum – umiejętność logicznego myślenia. Wiedza – zbiór informacji zdobytych przez doświadczenie i naukę. Mądrość – zdolność do wykorzystania wiedzy w praktyce. Inteligencja obejmuje analityczne i społeczne aspekty (IQ, EQ). Rozum pozwala na wyciąganie logicznych wniosków. Wiedza może być deklaratywna (fakty) lub proceduralna (umiejętności). Mądrość to świadome podejmowanie decyzji na podstawie doświadczenia")
-    insert_question(conn, "Omów wybrane metody wynalazcze (asymilacja, adaptacja, inwersja)", "open", "Metody wynalazcze to techniki wspomagające kreatywność poprzez wykorzystanie istniejących rozwiązań. Asymilacja – łączenie znanych koncepcji w nowe sposoby. Adaptacja – modyfikowanie istniejących rozwiązań do nowych zastosowań. Inwersja – odwracanie znanych schematów myślowych w celu znalezienia nowego podejścia.")
+    # Basic creativity
+    insert_question(conn, "Characterize concepts: intelligence, reason, knowledge, wisdom", "open", "Intelligence - ability to solve problems. Reasoning - ability to logical thinking. Knowledge - a collection of information obtained through experience and learning. Wisdom - ability to use knowledge in practice. Intelligence encompasses analytical and social aspects (IQ, EQ). Reasoning allows for drawing logical conclusions. Knowledge can be declarative (facts) or procedural (skills). Wisdom is conscious decision-making based on experience")
+    insert_question(conn, "Discuss selected creative methods (assimilation, adaptation, inversion)", "open", "Creative methods are techniques that support creativity by leveraging existing solutions. Assimilation - combining known concepts in new ways. Adaptation - modifying existing solutions for new applications. Inversion - inverting known thought patterns to find a new approach.")
 
     conn.commit()
 
@@ -434,50 +555,140 @@ def check_database():
 check_database()
 
 # GUI
-root = tk.Tk()
-root.title("Knowledge Tests")
-root.geometry("800x600")
+class App(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("Programming Quiz - Professional Edition")
+        self.geometry("1200x950")
+        self.resizable(False, False)
+        self.current_user = None
+        self.quiz = None
+        self.theme = 'light'
+        self.show_login()
 
-# Main frame
-main_frame = tk.Frame(root)
-main_frame.pack(expand=True, fill='both', padx=20, pady=20)
+    def show_login(self):
+        self.clear_screen()
+        LoginScreen(self, self.login_success, self.show_register).pack(expand=True, fill='both')
 
-# Question display
-question_label = tk.Label(main_frame, text="Select a test type to begin", 
-                         wraplength=700, justify=tk.LEFT, font=('Arial', 12))
-question_label.pack(pady=20)
+    def show_register(self):
+        self.clear_screen()
+        RegisterScreen(self, self.login_success, self.show_login).pack(expand=True, fill='both')
 
-# Answer entry
-answer_frame = tk.Frame(main_frame)
-answer_frame.pack(pady=20)
+    def login_success(self, user):
+        self.current_user = user
+        self.show_menu()
 
-answer_label = tk.Label(answer_frame, text="Your answer:", font=('Arial', 10))
-answer_label.pack(side=tk.LEFT, padx=5)
+    def clear_screen(self):
+        for widget in self.winfo_children():
+            widget.destroy()
 
-answer_entry = tk.Entry(answer_frame, width=50)
-answer_entry.pack(side=tk.LEFT, padx=5)
+    def show_menu(self):
+        self.clear_screen()
+        MainMenuScreen(
+            self,
+            self.current_user,
+            self.start_quiz,
+            self.show_records,
+            self.show_achievements,
+            self.logout,
+            self.show_stats,
+            self.show_ranking,
+            self.import_questions,
+            self.export_questions,
+            self.show_learning_mode,
+            self.switch_theme
+        ).pack(expand=True, fill='both')
 
-# Buttons frame
-button_frame = tk.Frame(main_frame)
-button_frame.pack(pady=20)
+    def start_quiz(self, test_type):
+        self.clear_screen()
+        # Pobierz pytania z bazy
+        c = conn.cursor()
+        c.execute("SELECT question, type, correct_answer, incorrect_options FROM questions WHERE type=?", (test_type,))
+        rows = c.fetchall()
+        questions = []
+        for row in rows:
+            q = {'question': row[0], 'type': row[1]}
+            if row[1] == 'single':
+                q['options'] = row[3].split(',') + [row[2]]
+                random.shuffle(q['options'])
+                q['answer'] = row[2]
+            elif row[1] == 'multiple':
+                q['options'] = row[3].split(',')
+                q['answer'] = [a.strip() for a in row[2].split(',')]
+            elif row[1] == 'open':
+                q['options'] = []
+                q['answer'] = row[2]
+            questions.append(q)
+        quiz = Quiz(questions, user=self.current_user)
+        QuizScreen(self, quiz, self.show_menu).pack(expand=True, fill='both')
 
-next_button = tk.Button(button_frame, text="Next Question", command=next_question, state=tk.DISABLED)
-next_button.pack(side=tk.LEFT, padx=5)
+    def show_records(self):
+        self.clear_screen()
+        ResultsScreen(self, self.current_user, self.show_menu).pack(expand=True, fill='both')
 
-# Menu
-menu = tk.Menu(root)
-root.config(menu=menu)
+    def show_achievements(self):
+        self.clear_screen()
+        AchievementsScreen(self, self.current_user, self.show_menu).pack(expand=True, fill='both')
 
-test_menu = tk.Menu(menu, tearoff=0)
-menu.add_cascade(label="Tests", menu=test_menu)
-test_menu.add_command(label="Single Choice", command=lambda: start_test("single"))
-test_menu.add_command(label="Open Questions", command=lambda: start_test("open"))
-test_menu.add_command(label="Multiple Choice", command=lambda: start_test("multiple"))
+    def logout(self):
+        self.current_user = None
+        self.quiz = None
+        self.show_login()
 
-# Progress button
-tk.Button(main_frame, text="Show Progress", command=show_progress).pack(pady=20)
+    def show_stats(self):
+        self.clear_screen()
+        # Placeholder for stats screen
+        tk.Label(self, text="Statistics Screen Placeholder", font=("Arial", 16)).pack(expand=True, fill='both')
+        self.show_menu()
 
-root.mainloop()
+    def show_ranking(self):
+        self.clear_screen()
+        # Placeholder for ranking screen
+        tk.Label(self, text="Ranking Screen Placeholder", font=("Arial", 16)).pack(expand=True, fill='both')
+        self.show_menu()
+
+    def import_questions(self):
+        self.clear_screen()
+        # Placeholder for import questions
+        tk.Label(self, text="Import Questions Placeholder", font=("Arial", 16)).pack(expand=True, fill='both')
+        self.show_menu()
+
+    def export_questions(self):
+        self.clear_screen()
+        # Placeholder for export questions
+        tk.Label(self, text="Export Questions Placeholder", font=("Arial", 16)).pack(expand=True, fill='both')
+        self.show_menu()
+
+    def show_learning_mode(self):
+        # Example: use all questions from DB or a sample
+        questions = [
+            {'question': 'Which language is compiled?', 'type': 'single', 'options': ['Python', 'C++', 'JavaScript', 'PHP'], 'answer': 'C++', 'hint': 'It is used for high-performance applications.'},
+            {'question': 'Select all OOP languages.', 'type': 'multiple', 'options': ['Java', 'C++', 'Python', 'HTML'], 'answer': ['Java', 'C++', 'Python'], 'hint': 'HTML is not a programming language.'},
+            {'question': 'Describe the concept of inheritance in OOP.', 'type': 'open', 'options': [], 'answer': 'Inheritance allows a class to acquire properties and methods of another class.', 'hint': 'It is a key OOP principle.'}
+        ]
+        self.clear_screen()
+        LearningModeScreen(self, questions, self.show_menu).pack(expand=True, fill='both')
+
+    def switch_theme(self):
+        self.theme = 'dark' if self.theme == 'light' else 'light'
+        self.show_menu()
+
+    def show_help(self):
+        msg = (
+            "Programming Quiz - User Guide\n\n"
+            "1. Register or log in to your account.\n"
+            "2. Use the menu to start a quiz, enter learning mode, view your records, achievements, statistics, or ranking.\n"
+            "3. In quiz mode, answer questions, use lifelines (50/50, hint, skip), and watch the timer.\n"
+            "4. In learning mode, practice questions with hints and see your mistakes.\n"
+            "5. Use Import/Export to manage your own question sets.\n"
+            "6. Switch between light and dark themes for your comfort.\n"
+            "7. All your results and achievements are saved to your account.\n"
+            "8. For help, click this button anytime!\n"
+        )
+        tk.messagebox.showinfo("Help / User Guide", msg)
+
+app = App()
+app.mainloop()
 
 # Close the database connection
 conn.close()

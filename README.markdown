@@ -1,69 +1,153 @@
-# Knowledge Testing Application
+# 🎓📝 Programming Quiz Pro: Interactive IT Knowledge System 🧠
+_A Python desktop application using Tkinter for interactive IT/programming quizzes with single-choice, multiple-choice, and open-ended questions, user accounts, achievements, learning mode, and a modern GUI._
 
-## Overview
-This Python application is an interactive knowledge testing system designed to conduct quizzes in three formats: single-choice, multiple-choice, and open-ended questions. It uses a SQLite database to store questions and results, evaluates user answers, tracks scores, and visualizes learning progress with charts. The graphical user interface (GUI) is built using Tkinter.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python](https://img.shields.io/badge/Python-3.6%2B-3776AB.svg?logo=python&logoColor=white)](https://www.python.org/)
+[![Tkinter](https://img.shields.io/badge/GUI-Tkinter-orange.svg)]()
+[![SQLite](https://img.shields.io/badge/Database-SQLite-003B57.svg?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
+[![Matplotlib](https://img.shields.io/badge/Visualization-Matplotlib-informational.svg?logo=matplotlib)](https://matplotlib.org/)
 
-## Features
-- **Test Formats**: Supports single-choice, multiple-choice, and open-ended questions.
-- **Database**: Stores questions and user results in a SQLite database.
-- **Answer Evaluation**: Automatically checks answers and awards points based on correctness.
-- **Progress Tracking**: Visualizes user performance over time using Matplotlib charts.
-- **User Interface**: Intuitive GUI created with Tkinter for easy navigation.
+## 📋 Table of Contents
+1.  [Overview](#-overview)
+2.  [Key Features](#-key-features)
+3.  [Screenshots (Conceptual)](#-screenshots-conceptual)
+4.  [System Requirements & Dependencies](#-system-requirements--dependencies)
+5.  [Database Schema](#-database-schema)
+6.  [Core Modules](#-core-modules)
+7.  [Installation and Setup](#️-installation-and-setup)
+8.  [Application Usage](#️-application-usage)
+9.  [File Structure](#-file-structure)
+10. [Technical Notes](#-technical-notes)
+11. [Contributing](#-contributing)
+12. [License](#-license)
+13. [Contact](#-contact)
 
-## Requirements
-- Python 3.6+
-- Libraries:
-  - `tkinter` (usually included with Python)
-  - `sqlite3` (included with Python)
-  - `matplotlib`
-  - `random`
-  - `datetime`
+## 📄 Overview
 
-Install the required library using:
-```bash
-pip install matplotlib
-```
+**Programming Quiz Pro** is a modern Python application for interactive IT and programming quizzes. Developed by Adrian Lesniak, it supports single-choice, multiple-choice, and open-ended questions, user registration and login, achievements, ranking, learning mode, and a beautiful, responsive GUI. All user progress, results, and questions are stored in an **SQLite database**. The app features a real-time message/info window, no pop-up dialogs, and supports import/export of questions and multiple color themes.
 
-## Setup
-1. Clone the repository:
-   ```bash
-   git clone <repository-url>
-   cd <repository-directory>
-   ```
-2. Ensure all required libraries are installed (see Requirements).
-3. Run the application:
-   ```bash
-   python main.py
-   ```
+<br>
+<p align="center">
+  <img src="screenshots/1.gif" width="90%">
+</p>
+<br>
 
-## Usage
-1. Launch the application to access the main menu.
-2. Select a test type (Single Choice, Multiple Choice, or Open Questions) from the "Tests" menu.
-3. Answer questions using the provided input fields or checkboxes.
-4. Click "Next Question" to proceed and receive feedback on your answer.
-5. View your progress by clicking "Show Progress" to display a chart of past results.
+## ✨ Key Features
 
-## File Structure
-- `main.py`: Main application script containing the core logic, GUI, and database interactions.
-- `database.py`: (Assumed) Contains functions for creating the database and inserting questions.
-- `README.md`: This file, providing project documentation.
+*   👤 **User Accounts**: Registration, login, user-specific results, achievements, and ranking.
+*   🏆 **Achievements & Ranking**: Earn badges for quiz mastery, streaks, high scores, and see your position in the global ranking.
+*   🤔 **Diverse Test Formats**: Single-choice, multiple-choice, and open-ended questions.
+*   📚 **Learning Mode**: Practice questions with hints, error tracking, and the ability to retry questions.
+*   💬 **Integrated Info Window**: All feedback, hints, errors, and results are shown in a scrollable info window at the bottom of the main window (no pop-up dialogs).
+*   💾 **SQLite Database**: Stores users, questions, results, achievements, and supports import/export of questions (JSON).
+*   🎨 **Modern Tkinter GUI**: Responsive, color themes (light/dark), large info window, clear navigation, and accessibility.
+*   📈 **Progress Visualization**: View your progress and statistics with Matplotlib charts.
+*   🗃️ **Database Preloading**: Rich set of IT/programming questions preloaded on first run.
+*   🔄 **Import/Export Questions**: Easily manage your own question sets.
 
-## Database
-- The application uses SQLite to manage a database with two main tables:
-  - `questions`: Stores question data (text, type, correct answer, incorrect options).
-  - `results`: Stores test results (test type, points, date).
-- Questions are preloaded into the database upon startup, covering topics like networking, programming, and databases.
+## 🖼️ Screenshots (Conceptual)
 
-## Contributing
-Contributions are welcome! To contribute:
-1. Fork the repository.
-2. Create a new branch (`git checkout -b feature-branch`).
-3. Make your changes and commit (`git commit -m "Add feature"`).
-4. Push to the branch (`git push origin feature-branch`).
-5. Open a pull request.
+_Screenshots of: login/registration, main menu, quiz types, learning mode, achievements, ranking, and info window._
 
-## License
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
+<p align="center">
+  <img src="screenshots/1.jpg" width="300"/>
+  <img src="screenshots/2.jpg" width="300"/>
+  <img src="screenshots/3.jpg" width="300"/>
+  <img src="screenshots/4.jpg" width="300"/>
+  <img src="screenshots/5.jpg" width="300"/>
+  <img src="screenshots/6.jpg" width="300"/>
+</p>
 
-## Contact
-For questions or feedback, please open an issue on GitHub or contact the repository owner.
+## ⚙️ System Requirements & Dependencies
+
+*   **Python Version**: Python 3.6 or higher.
+*   **Operating System**: Windows, Linux, or macOS (Tkinter and SQLite included with Python).
+*   **Standard Python Libraries**: `tkinter`, `sqlite3`, `random`, `datetime`, `os`, `json`.
+*   **External Libraries**: `matplotlib` (for charts).
+
+## 💾 Database Schema
+
+The application uses an SQLite database with the following tables:
+
+- **users**: id, username, email, password (hashed)
+- **questions**: id, question, type, correct_answer, incorrect_options, hint
+- **results**: id, user_id, type, points, date
+- **achievements**: id, user_id, name, description, date
+
+## 🧩 Core Modules
+
+*   `main.py`: Main application logic, GUI orchestration, user session, navigation.
+*   `gui.py`: All Tkinter GUI screens, info window, quiz/learning mode logic.
+*   `user.py`: User management, registration, login, stats, ranking, achievements.
+*   `quiz.py`: Quiz logic, answer checking, lifelines, progress.
+*   `database.py`: Database creation, schema, question/result/achievement management.
+*   `logger.py`: Error logging.
+
+## 🛠️ Installation and Setup
+
+1.  **Clone or Download the Repository**:
+    ```bash
+    git clone <repository-url>
+    cd <repository-directory>
+    ```
+2.  **Set Up a Virtual Environment (Recommended)**:
+    ```bash
+    python -m venv venv
+    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    ```
+3.  **Install Required Libraries**:
+    ```bash
+    pip install matplotlib
+    ```
+4.  **Run the Application**:
+    ```bash
+    python main.py
+    ```
+
+## 💡 Application Usage
+
+1.  **Register or log in** to your account.
+2.  Use the **main menu** to start a quiz, enter learning mode, view your records, achievements, statistics, or ranking.
+3.  In **quiz mode**, answer questions, use lifelines (50/50, hint, skip), and watch the timer. All feedback appears in the info window at the bottom.
+4.  In **learning mode**, practice questions with hints and see your mistakes. Info window shows all feedback.
+5.  Use **Import/Export** to manage your own question sets.
+6.  **Switch between light and dark themes** for your comfort.
+7.  All your results and achievements are saved to your account.
+
+## 🗂️ File Structure
+
+*   `main.py`
+*   `gui.py`
+*   `user.py`
+*   `quiz.py`
+*   `database.py`
+*   `logger.py`
+*   `knowledge_tests.db`
+*   `README.markdown`
+*   `screenshots/`
+
+## 📝 Technical Notes
+
+*   **No pop-up dialogs**: All feedback, errors, and hints are shown in the info window.
+*   **User accounts**: Each user has their own results, achievements, and stats.
+*   **Learning mode**: Practice with hints, error tracking, and retry.
+*   **Achievements**: Earn badges for quiz mastery, streaks, high scores, and more.
+*   **Ranking**: See your position among all users.
+*   **Import/Export**: Manage your own question sets (JSON).
+*   **Modern GUI**: Large, scrollable info window, color themes, accessibility.
+
+## 🤝 Contributing
+
+Contributions are welcome! Please fork the repository, create a branch, and submit a pull request. See the original instructions for details.
+
+## 📃 License
+
+This project is licensed under the **MIT License**.
+
+## 📧 Contact
+
+Application concept by **Adrian Lesniak**.
+For questions, feedback, or issues, please open an issue on the GitHub repository or contact the repository owner.
+
+---
+📚 _Test your IT knowledge and track your learning journey!_

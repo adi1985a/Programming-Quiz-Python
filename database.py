@@ -41,6 +41,26 @@ def check_questions(conn):
 def create_database():
     database = "knowledge_tests.db"
 
+    sql_create_users_table = """
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE,
+        email TEXT NOT NULL,
+        password TEXT NOT NULL
+    );
+    """
+
+    sql_create_achievements_table = """
+    CREATE TABLE IF NOT EXISTS achievements (
+        id INTEGER PRIMARY KEY,
+        user_id INTEGER NOT NULL,
+        name TEXT NOT NULL,
+        description TEXT,
+        date TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users (id)
+    );
+    """
+
     sql_create_questions_table = """
     CREATE TABLE IF NOT EXISTS questions (
         id INTEGER PRIMARY KEY,
@@ -54,9 +74,11 @@ def create_database():
     sql_create_results_table = """
     CREATE TABLE IF NOT EXISTS results (
         id INTEGER PRIMARY KEY,
+        user_id INTEGER NOT NULL,
         type TEXT NOT NULL,
         points INTEGER NOT NULL,
-        date TEXT NOT NULL
+        date TEXT NOT NULL,
+        FOREIGN KEY (user_id) REFERENCES users (id)
     );
     """
 
@@ -65,9 +87,13 @@ def create_database():
 
     # create tables
     if conn is not None:
+        create_table(conn, sql_create_users_table)
+        create_table(conn, sql_create_achievements_table)
         create_table(conn, sql_create_questions_table)
         create_table(conn, sql_create_results_table)
         return conn
     else:
         print("Error! cannot create the database connection.")
         return None
+
+# TODO: add user/achievement management functions
